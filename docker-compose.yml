@@ -1,0 +1,125 @@
+version: '3.0'
+
+services:
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    hostname: rabbitmq
+    volumes:
+      - ./rabbitmq:/var/lib/rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    env_file:
+      - ./rabbitmq.env
+#    environment:
+#      - RABBITMQ_DEFAULT_USER=admin
+#      - RABBITMQ_DEFAULT_PASS=admin
+#    healthcheck:
+#      test: [ "CMD", "curl", "-f", "http://localhost:15672" ]
+#      interval: 30s
+#      timeout: 10s
+#      retries: 5
+    networks:
+      - rabbitmq_net
+
+  profile-service:
+    image: ivi-profile-service:0.1
+    env_file:
+      - ivi-profile-service/.development.env
+    volumes:
+      - ./app:/usr/src/app
+      - /app/node_modules
+    ports:
+      - 7000:7000
+      - 9229:9229
+    command: npm run start:dev
+    restart: always
+#    depends_on:
+#      rabbitmq:
+#        condition: service_healthy
+    networks:
+      - rabbitmq_net
+      - pg_net
+
+
+  auth-user-service:
+    image: ivi-auth-user-service:0.1
+    env_file:
+      - ivi-auth-user-service/.development.env
+    volumes:
+      - ./app:/usr/src/app
+      - /app/node_modules
+    ports:
+      - 7001:7001
+      - 9230:9230
+    command: npm run start:dev
+    restart: always
+#    depends_on:
+#      rabbitmq:
+#        condition: service_healthy
+    networks:
+      - rabbitmq_net
+      - pg_net
+
+
+  postgres:
+    container_name: postgres
+    image: postgres:14
+    restart: always
+    ports:
+      - 5432:5432
+    env_file:
+      - .development.env
+    volumes:
+      - ./init-multi-postgres-databases.sh:/docker-entrypoint-initdb.d/init-multi-postgres-databases.sh
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - pg_net
+
+
+#  postgres-auth:
+#    container_name: postgres-auth
+#    image: postgres:14
+#    env_file:
+#      - .development.env
+#    environment:
+#      POSTGRES_DB: "ivi-users-auth"
+#      POSTGRES_PORT: 5432
+#      PG_DATA: /var/lib/postgresql-auth/data
+#    ports:
+#      - 5432:5432
+#    volumes:
+#      - pgdata:/var/lib/postgresql-auth/data
+#    restart: always
+#    networks:
+#      - pg_net
+
+#
+#  postgres-profile:
+#    container_name: postgres-profile
+#    image: postgres:14
+#    env_file:
+#      - .development.env
+#    environment:
+#      POSTGRES_DB: "ivi-profiles"
+#      POSTGRES_PORT: 5433
+#      PG_DATA: /var/lib/postgresql-profile/data
+#    ports:
+#      - 5433:5433
+#    volumes:
+#      - pgdata:/var/lib/postgresql-profile/data
+#    restart: always
+#    networks:
+#      - pg_net
+
+networks:
+  rabbitmq_net:
+    driver: bridge
+  pg_net:
+    driver: bridge
+
+volumes:
+  pgdata:
