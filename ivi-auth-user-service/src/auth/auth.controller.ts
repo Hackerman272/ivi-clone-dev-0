@@ -15,7 +15,7 @@ import {EventPattern} from "@nestjs/microservices";
 import {LoginDto} from "./dto/login.dto";
 import {ValidationPipe} from "../pipes/validation.pipe";
 import {HttpStatusCode} from "axios";
-import {AuthVK} from "./auth.model";
+import {AuthVKGoogleCode} from "./auth.model";
 import {UsersService} from "../users/users.service";
 import {VKUserDto} from "../users/dto/vk-user.dto";
 import {User} from "../users/user.model";
@@ -40,8 +40,55 @@ export class AuthController {
     registration(@Body()  registrationDto: RegistrationDto){
         return this.authService.registration(registrationDto)
     }
+
+    @Post("/registration/google")
+    async registrationGoogle(@Body(new ValidationPipe()) auth: AuthVKGoogleCode) {
+        let authData;
+
+        try {
+            authData = await this.authService.getGoogleToken(auth.code);
+        } catch (err) {
+            console.log(err)
+            throw new HttpException("Wrong Google code", HttpStatusCode.Unauthorized);
+        }
+
+        console.log("authData.data")
+        console.log(authData.data)
+        const dataUserGoogle: any = await this.authService.getUserDataFromGoogle(
+            authData.data.access_token
+        );
+
+        console.log("data.response")
+        console.log(dataUserGoogle)
+        const _user = await this.userService.findByEmail(dataUserGoogle.email);
+
+        console.log("_user")
+        console.log(_user)
+        if (_user) {
+            return await this.authService.login({vk_id: null, email: dataUserGoogle.email,
+                password: uuidv4()}, true);
+        }
+
+        try {
+            return await this.authService.registration({
+                vk_id: null,
+                email: dataUserGoogle.email,
+                password: uuidv4(),
+                name: dataUserGoogle.given_name,
+                surname: dataUserGoogle.family_name,
+                middleName: null,
+                phoneNumber: null,
+                vk_access_token: null,
+                google_access_token: authData.data.access_token
+            });
+        } catch (err) {
+            console.log(err)
+            throw new UnprocessableEntityException(err);
+        }
+    }
+
     @Post("/registration/vk")
-    async registrationVK(@Body(new ValidationPipe()) auth: AuthVK) {
+    async registrationVK(@Body(new ValidationPipe()) auth: AuthVKGoogleCode) {
         let authData;
 
         try {
@@ -62,7 +109,7 @@ export class AuthController {
         console.log("_user")
         console.log(_user)
         if (_user) {
-            return await this.authService.login({vk_id: _user.vk_id, email: `nomail${uuidv4()}@mail.ru`,
+            return await this.authService.login({vk_id: _user.vk_id, email: `nomail@mail.ru`,
                 password: uuidv4()}, true);
         }
 
@@ -84,7 +131,8 @@ export class AuthController {
                 surname: dataUserVk.data.response[0].last_name,
                 middleName: null,
                 phoneNumber: null,
-                vk_access_token: authData.data.access_token
+                vk_access_token: authData.data.access_token,
+                google_access_token: null
             });
         } catch (err) {
             console.log(err)

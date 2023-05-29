@@ -1,21 +1,12 @@
-import {
-    BadRequestException,
-    Body,
-    HttpException,
-    HttpStatus,
-    Inject,
-    Injectable,
-    Post,
-    UnauthorizedException
-} from '@nestjs/common';
-import { HttpService } from "@nestjs/axios";
-import {CreateUserDto} from "../users/dto/create-user.dto";
+import {HttpException, HttpStatus, Inject, Injectable, UnauthorizedException} from '@nestjs/common';
+import {HttpService} from "@nestjs/axios";
+import { AxiosRequestConfig } from "axios";
 import {UsersService} from "../users/users.service";
 import {JwtService} from "@nestjs/jwt";
 import * as bcrypt from "bcryptjs"
 import {User} from "../users/user.model";
 import * as process from "process";
-import {firstValueFrom} from "rxjs";
+import {firstValueFrom, lastValueFrom, map} from "rxjs";
 import {ClientProxy} from "@nestjs/microservices";
 import {RolesService} from "../roles/roles.service";
 import {RegistrationDto} from "./dto/registration.dto";
@@ -29,6 +20,7 @@ export class AuthService {
                 private jwtService: JwtService,
                 @Inject('PROFILE_SERVICE') readonly profileClient: ClientProxy,
                 @InjectModel(UserRoles) private userRolesRepository: typeof UserRoles,
+                private readonly httpService: HttpService,
                 private roleService: RolesService,
                 private http: HttpService) {
         this.profileClient.connect().then(result => console.log(result)).catch(error => console.log(error));
@@ -104,6 +96,43 @@ export class AuthService {
         }
     }
 
+    async getGoogleToken(code: string): Promise<any> {
+        const GDATA = {
+            client_id: process.env.GOOGLE_CLIENT_ID,
+            client_secret: process.env.GOOGLE_CLIENT_SECRET,
+        };
+
+        const host =
+            process.env.NODE_ENV === "prod"
+                ? process.env.APP_HOST
+                : process.env.APP_LOCAL;
+        const url = "https://accounts.google.com/o/oauth2/token";
+        let bodyFormData = new FormData();
+        bodyFormData.append("grant_type", "authorization_code");
+        bodyFormData.append("code", code);
+        bodyFormData.append("client_id", GDATA.client_id);
+        bodyFormData.append("client_secret", GDATA.client_secret);
+        bodyFormData.append("redirect_uri", `${host}/auth/google`);
+
+        return await this.httpService.post(
+            url,
+            bodyFormData
+        ).toPromise();
+    }
+
+    async getUserDataFromGoogle(token: string): Promise<any> {
+        let requestConfig: AxiosRequestConfig = {
+            headers: {
+                "Authorization": "Bearer " + token
+            }
+        };
+        return await lastValueFrom(
+            this.httpService.get("https://www.googleapis.com/oauth2/v3/userinfo", requestConfig).pipe(
+                map(res => res.data)
+            )
+        )
+    }
+
     async getVkToken(code: string): Promise<any> {
         const VKDATA = {
             client_id: process.env.CLIENT_ID,
@@ -114,10 +143,10 @@ export class AuthService {
             process.env.NODE_ENV === "prod"
                 ? process.env.APP_HOST
                 : process.env.APP_LOCAL;
-        console.log(`https://oauth.vk.com/access_token?client_id=${VKDATA.client_id}&client_secret=${VKDATA.client_secret}&redirect_uri=${host}/&code=${code}`)
+        console.log(`https://oauth.vk.com/access_token?client_id=${VKDATA.client_id}&client_secret=${VKDATA.client_secret}&redirect_uri=${host}/auth&code=${code}`)
         return await this.http
             .get(
-                `https://oauth.vk.com/access_token?client_id=${VKDATA.client_id}&client_secret=${VKDATA.client_secret}&redirect_uri=${host}/&code=${code}`
+                `https://oauth.vk.com/access_token?client_id=${VKDATA.client_id}&client_secret=${VKDATA.client_secret}&redirect_uri=${host}/auth&code=${code}`
             )
             .toPromise();
     }

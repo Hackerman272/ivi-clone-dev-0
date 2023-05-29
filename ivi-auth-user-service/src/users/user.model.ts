@@ -9,6 +9,8 @@ interface UserCreationAttrs {
     password: string;
     profileId: number;
     vk_id: number;
+    vk_access_token: string;
+    google_access_token: string;
 }
 
 @Table({tableName: "users"})
@@ -44,4 +46,7 @@ export class User extends Model<User, UserCreationAttrs> {
 
     @Column({type: DataTypes.STRING, allowNull: true})
     vk_access_token: string;
+
+    @Column({type: DataTypes.STRING, allowNull: true})
+    google_access_token: string;
 }

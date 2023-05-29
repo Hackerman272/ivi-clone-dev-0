@@ -41,8 +41,13 @@ export class RegistrationDto {
     @IsOptional()
     readonly vk_id: number;
 
-    @ApiProperty({example: 53343, description: "id пользователя"})
+    @ApiProperty({example: "123124", description: "access_token пользователя ВК"})
     @IsString()
     @IsOptional()
     readonly vk_access_token: string;
+
+    @ApiProperty({example: "3423", description: "access_token пользователя Гугла"})
+    @IsString()
+    @IsOptional()
+    readonly google_access_token: string;
 }
