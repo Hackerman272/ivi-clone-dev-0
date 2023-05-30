@@ -143,10 +143,10 @@ export class AuthService {
             process.env.NODE_ENV === "prod"
                 ? process.env.APP_HOST
                 : process.env.APP_LOCAL;
-        console.log(`https://oauth.vk.com/access_token?client_id=${VKDATA.client_id}&client_secret=${VKDATA.client_secret}&redirect_uri=${host}/auth&code=${code}`)
+        console.log(`https://oauth.vk.com/access_token?client_id=${VKDATA.client_id}&client_secret=${VKDATA.client_secret}&redirect_uri=${host}/auth/vk&code=${code}`)
         return await this.http
             .get(
-                `https://oauth.vk.com/access_token?client_id=${VKDATA.client_id}&client_secret=${VKDATA.client_secret}&redirect_uri=${host}/auth&code=${code}`
+                `https://oauth.vk.com/access_token?client_id=${VKDATA.client_id}&client_secret=${VKDATA.client_secret}&redirect_uri=${host}/auth/vk&code=${code}`
             )
             .toPromise();
     }
